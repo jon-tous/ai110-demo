@@ -1,5 +1,12 @@
 # 🎵 Music Recommender Simulation
 
+<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example1.png">
+<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example2.png">
+<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example3.png">
+<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example4.png">
+<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example5.png">
+<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example6.png">
+<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example7.png">
 ## Project Summary
 
 In this project you will build and explain a small music recommender system.
