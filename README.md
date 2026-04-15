@@ -2,6 +2,8 @@
 
 VibeMatch 2.0 extends a rule-based music recommender with a Gemini-powered conversational AI layer. You describe your mood in plain English and the system figures out the rest.
 
+<img src="https://github.com/jon-tous/ai110-demo/blob/main/assets/vibematch2.png">
+
 ---
 
 ## About the Original Project (VibeMatch 1.0)
