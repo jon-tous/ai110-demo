@@ -1,270 +1,315 @@
-# 🎵 Music Recommender Simulation
+# 🎵 VibeMatch 2.0 — Gemini-Powered Music Recommender
 
-<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example1.png">
-<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example2.png">
-<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example3.png">
-<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example4.png">
-<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example5.png">
-<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example6.png">
-<img src="https://github.com/jon-tous/ai110-module3show-musicrecommendersimulation-starter/blob/main/screenshots/example7.png">
-## Project Summary
-
-In this project you will build and explain a small music recommender system.
-
-Your goal is to:
-
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
-
-Replace this paragraph with your own summary of what your version does.
+VibeMatch 2.0 extends a rule-based music recommender with a Gemini-powered conversational AI layer. You describe your mood in plain English and the system figures out the rest.
 
 ---
 
-## How The System Works
+## About the Original Project (VibeMatch 1.0)
 
-Real-world recommendation systems usually combine many signals, such as what users play, skip, save, and search for, then rank items by how likely each person is to engage. This project uses a simpler content-based version of that idea: each song is compared to a user taste profile using features like genre, mood, energy, tempo, and valence, then given a weighted score based on how close it is to the user's preferences. My version will prioritize relevance first (matching vibe and listening intent), while keeping the scoring rule transparent so it is easy to understand, test, and adjust.
+The base project is a **content-based music recommendation simulation** built as a module 3 class project. Its goal was to demonstrate how recommendation algorithms work by:
 
-My `Song` object uses these features:
+- Representing songs as feature vectors (genre, mood, energy, tempo, valence, danceability, acousticness)
+- Representing user preferences as a numeric "taste profile"
+- Scoring every song against that profile using a transparent weighted formula
+- Returning the top-K matches with scoring breakdowns
 
-- `id`
-- `title`
-- `artist`
-- `genre`
-- `mood`
-- `energy`
-- `tempo_bpm`
-- `valence`
-- `danceability`
-- `acousticness`
-
-My `UserProfile` object stores these preferences and weights:
-
-- `preferred_genre`
-- `preferred_mood`
-- `preferred_energy`
-- `preferred_tempo_bpm`
-- `preferred_valence`
-- `preferred_danceability`
-- `preferred_acousticness`
-- `weight_genre`
-- `weight_mood`
-- `weight_energy`
-- `weight_tempo`
-- `weight_valence`
-- `weight_danceability`
-- `weight_acousticness`
-
-### Algorithm Recipe
-
-1. **Input user preferences**
-  - Load `favorite_genre`, `favorite_mood`, and target numeric values.
-2. **Load song catalog**
-  - Read every song row from `data/songs.csv`.
-3. **Score each song**
-  - Start each song at `0` points.
-  - Add **+2** if genre matches the user profile.
-  - Add **+1** if mood matches the user profile.
-  - For each numeric feature (`energy`, `tempo_bpm`, `valence`, `danceability`, `acousticness`), compute closeness:
-    - `closeness = 1 - abs(song_value - target_value)`
-  - Multiply each closeness value by its feature weight.
-  - Add weighted numeric points to produce a final total score.
-4. **Rank songs**
-  - Sort songs by score from highest to lowest.
-  - Return the Top K songs as recommendations.
-
-### Potential Bias Note
-
-This system might over-prioritize genre because genre matches are worth +2 points, which can cause it to miss songs from other genres that still strongly match the user's mood and numeric vibe profile.
-
-Some prompts to answer:
-
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
-
-You can include a simple diagram or bullet list if helpful.
+The system worked entirely through deterministic rules — no AI, no language understanding. Users had to specify exact numbers (`energy=0.88`, `tempo=128`), which is not how real people think about music.
 
 ---
 
-## Getting Started
+## New AI Feature: Multi-Step Gemini Agent
 
-### Setup
+VibeMatch 2.0 adds a **5-step AI pipeline** that wraps the existing recommender without replacing it:
 
-1. Create a virtual environment (optional but recommended):
+```
+User's natural language query
+    │
+    ▼
+[Step 1] Gemini extracts a structured UserProfile (JSON mode)
+    │
+    ▼
+[Step 2] Input guardrails clamp out-of-range values + warn on conflicts
+    │
+    ▼
+[Step 3] Original recommend_songs() runs unchanged
+    │
+    ▼
+[Step 4] Gemini self-critique: do the results match the user's intent?
+         └─ If not: adjust profile and retry (max 2 attempts)
+    │
+    ▼
+[Step 5] Gemini writes a friendly curator-style explanation
+    │
+    ▼
+Streamlit UI displays picks + score breakdowns
+```
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate      # Mac or Linux
-   .venv\Scripts\activate         # Windows
+The rule-based engine ([src/recommender.py](src/recommender.py)) is untouched. Gemini acts as an intelligent front-end and quality-checker.
 
-2. Install dependencies
+---
+
+## System Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        Streamlit UI (app.py)                 │
+│   Text input ──► pipeline ──► results + explanations         │
+└──────────────┬───────────────────────────────────────────────┘
+               │
+    ┌──────────▼──────────┐
+    │  gemini_agent.py    │  ◄── google-generativeai (Gemini 1.5 Flash)
+    │  ─────────────────  │
+    │  1. extract_profile │  NL → structured JSON UserProfile
+    │  2. self_critique   │  do recommendations match intent?
+    │  3. gen_explanation │  friendly curator note
+    └──────────┬──────────┘
+               │
+    ┌──────────▼──────────┐
+    │   guardrails.py     │
+    │  ─────────────────  │
+    │  validate_profile   │  clamp values, warn on conflicts
+    │  check_diversity    │  flag all-same-genre results
+    └──────────┬──────────┘
+               │
+    ┌──────────▼──────────┐
+    │   recommender.py    │  ◄── Original VibeMatch 1.0 engine
+    │  ─────────────────  │
+    │  load_songs()       │  CSV → list[dict]
+    │  score_song()       │  weighted feature matching
+    │  recommend_songs()  │  sort → top-K
+    └──────────┬──────────┘
+               │
+    ┌──────────▼──────────┐
+    │  data/songs.csv     │  18 songs, 10 features each
+    └─────────────────────┘
+```
+
+---
+
+## Setup Instructions
+
+### 1. Clone and enter the project
+
+```bash
+git clone <repo-url>
+cd ai110-demo
+```
+
+### 2. Create a virtual environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate      # Mac/Linux
+.venv\Scripts\activate         # Windows
+```
+
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Run the app:
+### 4. Add your Gemini API key
+
+Create a `.env` file in the project root (it's already gitignored):
 
 ```bash
-python -m src.main
+echo "GEMINI_API_KEY=your_key_here" > .env
 ```
 
-### Running Tests
+Get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).
 
-Run the starter tests with:
+### 5. Run the Streamlit app
+
+```bash
+streamlit run app.py
+```
+
+Open `http://localhost:8501` in your browser.
+
+---
+
+## Sample Inputs and Outputs
+
+### Example 1 — "something calm to study to"
+
+**Extracted profile:**
+```json
+{
+  "favorite_genre": "lofi",
+  "favorite_mood": "focused",
+  "target_energy": 0.35,
+  "target_tempo_bpm": 80,
+  "target_valence": 0.55,
+  "target_danceability": 0.5,
+  "target_acousticness": 0.75
+}
+```
+
+**Top picks:** Midnight Coding, Library Rain, Focus Flow, Spacewalk Thoughts, Coffee Shop Stories
+
+**Curator note:** *"These picks settle into a mellow, unhurried groove that keeps your brain in the zone without pulling your attention away. The lofi and ambient textures give you just enough sonic backdrop to feel present without being distracted."*
+
+---
+
+### Example 2 — "upbeat pop for a summer party"
+
+**Extracted profile:**
+```json
+{
+  "favorite_genre": "pop",
+  "favorite_mood": "happy",
+  "target_energy": 0.85,
+  "target_tempo_bpm": 125,
+  "target_valence": 0.85,
+  "target_danceability": 0.88,
+  "target_acousticness": 0.12
+}
+```
+
+**Top picks:** Sunrise City, Gym Hero, Tidal Hearts, Sunset Bazaar, Rooftop Lights
+
+**Curator note:** *"These tracks bring the kind of feel-good, high-energy brightness that makes a party come alive — bright production, danceable grooves, and melodies that stick."*
+
+---
+
+### Example 3 — "dark moody late night synthwave"
+
+**Extracted profile:**
+```json
+{
+  "favorite_genre": "synthwave",
+  "favorite_mood": "moody",
+  "target_energy": 0.72,
+  "target_tempo_bpm": 112,
+  "target_valence": 0.42,
+  "target_danceability": 0.7,
+  "target_acousticness": 0.15
+}
+```
+
+**Top picks:** Night Drive Loop, Polar Lights Pulse, Neon Alley Cipher, Tidal Hearts, Velvet Afterglow
+
+---
+
+## Running Tests
+
+### Existing unit tests (no API key needed)
 
 ```bash
 pytest
 ```
 
-You can add more tests in `tests/test_recommender.py`.
+Tests verify that recommendations are ranked by score and explanations are non-empty.
+
+### Guardrail evaluation script
+
+```bash
+python eval/eval_guardrails.py
+```
+
+This tests:
+- **Section 1 (no API key):** 6 guardrail unit tests covering valid input, out-of-range clamping, unknown genre/mood, contradiction detection, and diversity checking
+- **Section 2 (requires API key):** 3 full pipeline tests with self-critique validation
+
+Sample Section 1 output:
+```
+============================================================
+SECTION 1: Input Validation Guardrails (no API key needed)
+============================================================
+
+Test 1b: Out-of-range values → clamped with warnings
+  [✓] PASS: Energy clamped to 1.0
+  [✓] PASS: Tempo clamped to 200
+  [✓] PASS: Valence clamped to 0.0
+  [✓] PASS: Warnings generated for out-of-range values
+  Warnings issued:
+    - 'target_energy' value 1.80 is outside the valid range [0.0, 1.0] — clamped to fit.
+    - 'target_tempo_bpm' value 240.00 is outside the valid range [60.0, 200.0] — clamped to fit.
+    - 'target_valence' value -0.30 is outside the valid range [0.0, 1.0] — clamped to fit.
+```
+
+### Original CLI runner
+
+```bash
+python -m src.main
+```
 
 ---
 
-## Experiments You Tried
+## Reliability & Guardrail Component
 
-Use this section to document the experiments you ran. For example:
+### Input guardrails (`src/guardrails.py`)
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+`validate_profile()` applies four checks before the recommender runs:
 
----
+| Check | What it does |
+|---|---|
+| Numeric range clamping | Clamps energy/valence/danceability/acousticness to [0, 1]; tempo to [60, 200] |
+| Unknown genre warning | Warns if genre isn't in the 15-song catalog genres |
+| Unknown mood warning | Warns if mood isn't in the 14 known moods |
+| Contradiction detection | Warns if energy > 0.8 AND acousticness > 0.8 (physically rare combination) |
 
-## Limitations and Risks
+### Output guardrail (`check_diversity`)
 
-Summarize some limitations of your recommender.
+`check_diversity()` inspects the final recommendations and returns `False` if all picks share the same genre. The app surfaces a note to the user when this happens.
 
-Examples:
+### Self-critique loop (`src/gemini_agent.py`)
 
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
-
----
-
-## Reflection
-
-Read and complete `model_card.md`:
-
-[**Model Card**](model_card.md)
-
-Write 1 to 2 paragraphs here about what you learned:
-
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
-
+`self_critique()` asks Gemini to evaluate whether the recommendations actually match the user's stated intent. If `matches_intent=False`, the app applies the suggested adjustments and re-runs the recommender (up to 2 retries). This catches cases where Gemini's extracted profile was slightly off.
 
 ---
 
-## 7. `model_card_template.md`
+## Reflection on AI Collaboration
 
-Combines reflection and model card framing from the Module 3 guidance. :contentReference[oaicite:2]{index=2}  
+### How AI was used during development
 
-```markdown
-# 🎧 Model Card - Music Recommender Simulation
+Claude was used for the full development cycle: exploring the existing codebase, planning the architecture, writing all new code, and debugging import path issues. The planning conversation helped clarify how to keep the original `recommender.py` untouched while building the Gemini layer on top.
 
-## 1. Model Name
+Gemini itself is the runtime AI in the final product — it handles profile extraction (structured JSON mode), self-critique, and explanation generation.
 
-Give your recommender a name, for example:
+### One helpful AI suggestion
 
-> VibeFinder 1.0
+The most useful suggestion was using `response_mime_type="application/json"` in the Gemini generation config rather than asking the model to return JSON in the prompt and then parsing it manually. This eliminated a whole class of parsing errors where Gemini would sometimes wrap the JSON in markdown code fences.
 
----
+### One flawed AI suggestion
 
-## 2. Intended Use
+An early design from AI suggested using `google.generativeai`'s `response_schema` parameter to enforce a strict JSON schema. In practice, this caused errors with the version of the SDK installed — the schema validation feature behaves differently across SDK versions. The simpler `response_mime_type="application/json"` approach was more reliable.
 
-- What is this system trying to do
-- Who is it for
+### Limitations
 
-Example:
+- **Tiny catalog (18 songs):** Gemini might extract a perfect profile but the catalog has no matching songs. A real system needs 10,000+ tracks.
+- **Tempo scaling:** The original `score_song()` uses a 120-point scale for tempo vs. 1.0 for other features, making tempo underweighted. This is a known bug inherited from v1.
+- **Gemini latency:** Each recommendation takes 2–4 API calls. The UI is noticeably slower than a local-only system.
+- **Self-critique accuracy:** Gemini's critique is a language model judgment, not a ground-truth evaluation. It can be wrong.
 
-> This model suggests 3 to 5 songs from a small catalog based on a user's preferred genre, mood, and energy level. It is for classroom exploration only, not for real users.
+### Future improvements
 
----
-
-## 3. How It Works (Short Explanation)
-
-Describe your scoring logic in plain language.
-
-- What features of each song does it consider
-- What information about the user does it use
-- How does it turn those into a number
-
-Try to avoid code in this section, treat it like an explanation to a non programmer.
+- Expand the song catalog to 500+ tracks with richer metadata
+- Add user session history so preferences refine over time
+- Replace the fixed-weight scoring with a learned ranking model
+- Cache Gemini profile extractions for identical queries
+- Add a feedback loop: "Was this recommendation good?" trains future weights
 
 ---
 
-## 4. Data
+## Project Files
 
-Describe your dataset.
-
-- How many songs are in `data/songs.csv`
-- Did you add or remove any songs
-- What kinds of genres or moods are represented
-- Whose taste does this data mostly reflect
-
----
-
-## 5. Strengths
-
-Where does your recommender work well
-
-You can think about:
-- Situations where the top results "felt right"
-- Particular user profiles it served well
-- Simplicity or transparency benefits
-
----
-
-## 6. Limitations and Bias
-
-Where does your recommender struggle
-
-Some prompts:
-- Does it ignore some genres or moods
-- Does it treat all users as if they have the same taste shape
-- Is it biased toward high energy or one genre by default
-- How could this be unfair if used in a real product
-
----
-
-## 7. Evaluation
-
-How did you check your system
-
-Examples:
-- You tried multiple user profiles and wrote down whether the results matched your expectations
-- You compared your simulation to what a real app like Spotify or YouTube tends to recommend
-- You wrote tests for your scoring logic
-
-You do not need a numeric metric, but if you used one, explain what it measures.
-
----
-
-## 8. Future Work
-
-If you had more time, how would you improve this recommender
-
-Examples:
-
-- Add support for multiple users and "group vibe" recommendations
-- Balance diversity of songs instead of always picking the closest match
-- Use more features, like tempo ranges or lyric themes
-
----
-
-## 9. Personal Reflection
-
-A few sentences about what you learned:
-
-- What surprised you about how your system behaved
-- How did building this change how you think about real music recommenders
-- Where do you think human judgment still matters, even if the model seems "smart"
-
+```
+ai110-demo/
+├── app.py                    # Streamlit UI (VibeMatch 2.0 entry point)
+├── requirements.txt          # Dependencies
+├── .env                      # GEMINI_API_KEY goes here (gitignored)
+├── data/
+│   └── songs.csv             # 18-song catalog
+├── src/
+│   ├── recommender.py        # Original rule-based engine (unchanged)
+│   ├── gemini_agent.py       # Gemini pipeline (NEW)
+│   ├── guardrails.py         # Input/output validation (NEW)
+│   └── main.py               # Original CLI runner
+├── eval/
+│   └── eval_guardrails.py    # Evaluation script (NEW)
+├── tests/
+│   └── test_recommender.py   # Original unit tests
+└── model_card.md             # Original model card
+```
