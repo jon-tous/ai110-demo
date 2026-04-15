@@ -293,6 +293,30 @@ An early design from AI suggested using `google.generativeai`'s `response_schema
 
 ---
 
+## Reflection and Ethics: Thinking Critically About This AI
+
+### Limitations and biases in the system
+
+The most significant bias lives in the original scoring algorithm inherited from v1: an exact genre match awards +2 points, a fixed bonus that often drowns out numeric similarity. A jazz song with a nearly identical energy and tempo to what someone asked for will lose to a pop song that only loosely matches the numbers, just because the genre label matches. This encodes a hidden assumption that genre boundaries are meaningful and rigid, which isn't how most listeners actually experience music.
+
+A second bias is in the catalog itself. The 18-song dataset was constructed manually and skews toward Western popular genres — pop, rock, lofi, synthwave. Classical gets one song, as does metal, hip-hop, and afrobeat. A user whose taste centers on any of those genres will get worse recommendations than a pop listener, simply because there are fewer options to match against. The system will confidently recommend a song from a different genre and call it a "good match," with no signal to the user that the catalog just didn't have what they needed.
+
+Gemini introduces a third layer of bias: its interpretation of natural language is shaped by what the training data associated with certain words and genres. Describing music as "aggressive" or "hard" probably maps reliably to metal or rock, because that association is common in English-language text. More culturally specific descriptions — referencing regional music scenes or non-English terminology — may be poorly parsed or mapped to the closest Western equivalent.
+
+### Could this system be misused, and how would you prevent it?
+
+A music recommender is low-stakes, but the architecture generalizes to higher-risk contexts. The main misuse surface here is the Gemini profile extraction step: because the system trusts Gemini's JSON output and passes it directly to the recommender, a carefully crafted input could try to inject values that manipulate the scoring in unintended ways (e.g., extremely high genre weights, or edge-case numeric values designed to surface specific songs). The input guardrails in `guardrails.py` address this by clamping all numeric fields to valid ranges before they reach the recommender — garbage in gets corrected before it can do damage.
+
+At a broader level, a production version of this system would need to be careful about reinforcing filter bubbles. If users only ever get recommendations close to what they already like, the system never exposes them to new genres or artists. Real platforms address this with deliberate diversity injection; this project's `check_diversity()` function is a minimal version of that idea.
+
+### What surprised me while testing the system's reliability?
+
+Two things stood out. First, the self-critique loop failed more than expected on the "EXTREMELY INTENSE FAST METAL" query — Gemini correctly identified that only one truly metal song existed in the catalog and flagged the results as a poor match. The surprise wasn't that it caught the problem; it was that there was nothing the retry could do about it, because the catalog simply doesn't have enough metal songs. The guardrail exposed a real data limitation rather than a logic error, which wasn't the failure mode I anticipated.
+
+Second, the input guardrail for contradictory combinations (high energy + high acousticness) turned out to be more useful than expected. During testing, Gemini occasionally extracted this combination for queries like "intense folk music" or "energetic acoustic guitar." The warning didn't block the query, but surfacing it to the user sets honest expectations — the system is telling you it's doing its best with a catalog that doesn't have many songs fitting that description. That transparency felt like the right design choice.
+
+---
+
 ## Project Files
 
 ```
